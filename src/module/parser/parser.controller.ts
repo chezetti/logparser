@@ -1,7 +1,7 @@
 import { Controller, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
-import { ParserDto } from './interfaces/parser.dto';
+import { ParserDto } from './dto/parser.dto';
 import { ParserService } from './parser.service';
 
 @ApiTags('parser')
