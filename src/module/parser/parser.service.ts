@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { ParserDto } from './interfaces/parser.dto';
+import { ParserDto } from './dto/parser.dto';
 
 @Injectable()
 export class ParserService {
