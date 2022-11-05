@@ -1,6 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import * as fs from 'fs';
-import * as path from 'path';
 
 import { ParserDto } from './interfaces/parser.dto';
 
@@ -8,29 +6,25 @@ import { ParserDto } from './interfaces/parser.dto';
 export class ParserService {
   ERROR = 'ERROR';
   INFO = 'INFO';
-  REGEX = /^(?!.*\R\[\d)\[([\d :.-]+)]ERROR.*?(F:\S*)(?sx).*?\b([a-zA-Z]*Exception)\b/;
 
-  constructor() {}
+  getLogInfo(file: Express.Multer.File): ParserDto {
+    let errorCount: number = 0, infoCount: number = 0;
 
-  async getLogInfo(file: Express.Multer.File): Promise<ParserDto> {
-    let errorCount: number, infoCount: number;
-
-    const contents = fs.readFileSync('../../data/transport_info.log', 'utf-8');
+    const contents = file.buffer.toString();
     const lines = contents.split('\n');
 
     for (const line of lines) {
-      if (await this.isError(line)) {
-        console.log(line);
-        infoCount++;
-      } else if (await this.isInfo(line)) {
+      if (this.isError(line)) {
         errorCount++;
+      } else if (this.isInfo(line)) {
+        infoCount++;
       }
     }
 
     return { errorCount, infoCount };
   }
 
-  async isError(line: string): Promise<boolean> {
+  isError(line: string): boolean {
     try {
       return line.toLowerCase().includes(this.ERROR.toLowerCase());
     } catch (err) {
@@ -38,7 +32,7 @@ export class ParserService {
     }
   }
 
-  async isInfo(line: string): Promise<boolean> {
+  isInfo(line: string): boolean {
     try {
       return line.toLowerCase().includes(this.INFO.toLowerCase());
     } catch (err) {
