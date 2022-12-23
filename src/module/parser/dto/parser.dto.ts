@@ -1,5 +1,7 @@
+import { ILevelInfo } from '../interfaces/level-info.interface';
+import { ITransportLogOccuranceFrequency } from '../interfaces/occurance-frequency.interface';
+
 export interface ParserDto {
-  errorCount: number;
-  infoCount: number;
-  warnCount: number;
+  levelInfo: ILevelInfo;
+  occuranceFrequency: ITransportLogOccuranceFrequency;
 }

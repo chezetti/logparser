@@ -1,96 +1,108 @@
 import { Injectable } from '@nestjs/common';
 import { decode } from 'iconv-lite';
 
+import { TRANSPORT_LOG_REGEX } from 'src/config/regex.config';
 import { ParserDto } from './dto/parser.dto';
+import { logLevelEnum } from './enums/log-level.enum';
+import { ILevelInfo } from './interfaces/level-info.interface';
+import { IOccuranceFrequency, ITransportLogOccuranceFrequency } from './interfaces/occurance-frequency.interface';
 
 @Injectable()
 export class ParserService {
-  ERROR = 'ERROR';
-  INFO = 'INFO';
-  WARN = 'WARN';
-  REGEX = new RegExp(/^\s*(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3})\s+(\w+)\s+(.+?)\s+-\s+(.+?)\s*$/, 'u');
-
   getLogInfo(file: Express.Multer.File): ParserDto {
-    let errorCount: number = 0,
-      infoCount: number = 0,
-      warnCount: number = 0;
+    let levelInfo: ILevelInfo = {
+      infoCount: 0,
+      errorCount: 0,
+      warnCount: 0,
+    };
+
+    let occuranceFrequency: ITransportLogOccuranceFrequency = {
+      levelCountsByTimestamp: {},
+      classNameCountsByTimestamp: {},
+      messageCountsByTimestamp: {},
+    };
 
     const contents = decode(file.buffer, 'windows1251');
 
-    let levelCountsByTimestamp: Record<string, Record<string, number>> = {};
-    let classNameCountsByTimestamp: Record<string, Record<string, number>> = {};
-    let messageCountsByTimestamp: Record<string, Record<string, number>> = {};
-
     for (const line of contents.split('\n')) {
-      const match = this.REGEX.exec(line);
+      const transportLogMatch = TRANSPORT_LOG_REGEX.exec(line);
 
-      if (match) {
-        const [, timestamp, level, className, message] = match;
+      if (transportLogMatch) {
+        levelInfo = this.countLevels(transportLogMatch, levelInfo);
 
-        const countLevelsResult = this.countLevels(level, errorCount, infoCount, warnCount);
-        errorCount = countLevelsResult.errorCount;
-        infoCount = countLevelsResult.infoCount;
-        warnCount = countLevelsResult.warnCount;
-
-        levelCountsByTimestamp = this.findOccuranceFrequencyOfLogGroup(timestamp, level, levelCountsByTimestamp);
-        classNameCountsByTimestamp = this.findOccuranceFrequencyOfLogGroup(
-          timestamp,
-          className,
-          classNameCountsByTimestamp
-        );
-        messageCountsByTimestamp = this.findOccuranceFrequencyOfLogGroup(timestamp, message, messageCountsByTimestamp);
+        occuranceFrequency = this.findOccuranceFrequencyOfTransportLogs(transportLogMatch, occuranceFrequency);
       }
     }
 
-    console.log(levelCountsByTimestamp);
+    return { levelInfo, occuranceFrequency };
+  }
 
-    return { errorCount, infoCount, warnCount };
+  findOccuranceFrequencyOfTransportLogs(
+    transportLogMatch: RegExpExecArray,
+    occuranceFrequency: ITransportLogOccuranceFrequency
+  ): ITransportLogOccuranceFrequency {
+    const [, timestamp, level, className, message] = transportLogMatch;
+
+    occuranceFrequency.levelCountsByTimestamp = this.findOccuranceFrequencyOfLogGroup(
+      timestamp,
+      level,
+      occuranceFrequency.levelCountsByTimestamp
+    );
+    occuranceFrequency.classNameCountsByTimestamp = this.findOccuranceFrequencyOfLogGroup(
+      timestamp,
+      className,
+      occuranceFrequency.classNameCountsByTimestamp
+    );
+    occuranceFrequency.messageCountsByTimestamp = this.findOccuranceFrequencyOfLogGroup(
+      timestamp,
+      message,
+      occuranceFrequency.messageCountsByTimestamp
+    );
+
+    return occuranceFrequency;
   }
 
   findOccuranceFrequencyOfLogGroup(
-    timestamp: string,
-    logGroup: string,
-    logGroupCountsByTimestamp: Record<string, Record<string, number>>
-  ): Record<string, Record<string, number>> {
-    if (!(logGroup in logGroupCountsByTimestamp)) {
-      logGroupCountsByTimestamp[logGroup] = {};
+    firstLogGroup: string,
+    secondLogGroup: string,
+    logGroupCountsBy: IOccuranceFrequency
+  ): IOccuranceFrequency {
+    if (!(secondLogGroup in logGroupCountsBy)) {
+      logGroupCountsBy[secondLogGroup] = {};
     }
 
-    if (timestamp in logGroupCountsByTimestamp[logGroup]) {
-      logGroupCountsByTimestamp[logGroup][timestamp] += 1;
+    if (firstLogGroup in logGroupCountsBy[secondLogGroup]) {
+      logGroupCountsBy[secondLogGroup][firstLogGroup] += 1;
     } else {
-      logGroupCountsByTimestamp[logGroup][timestamp] = 1;
+      logGroupCountsBy[secondLogGroup][firstLogGroup] = 1;
     }
 
-    return logGroupCountsByTimestamp;
+    return logGroupCountsBy;
   }
 
-  countLevels(
-    level: string,
-    errorCount: number,
-    infoCount: number,
-    warnCount: number
-  ): { errorCount: number; infoCount: number; warnCount: number } {
+  countLevels(transportLogMatch: RegExpExecArray, levelInfo: ILevelInfo): ILevelInfo {
+    const [, , level, ,] = transportLogMatch;
+
     if (this.isError(level)) {
-      errorCount++;
+      levelInfo.errorCount++;
     } else if (this.isInfo(level)) {
-      infoCount++;
+      levelInfo.infoCount++;
     } else if (this.isWarn(level)) {
-      warnCount++;
+      levelInfo.warnCount++;
     }
 
-    return { errorCount, infoCount, warnCount };
+    return levelInfo;
   }
 
   isError(level: string): boolean {
-    return level === this.INFO;
+    return level === logLevelEnum.ERROR;
   }
 
   isInfo(level: string): boolean {
-    return level === this.ERROR;
+    return level === logLevelEnum.INFO;
   }
 
   isWarn(level: string): boolean {
-    return level === this.WARN;
+    return level === logLevelEnum.WARN;
   }
 }
