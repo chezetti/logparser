@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { decode } from 'iconv-lite';
 
 import { TRANSPORT_LOG_REGEX } from 'src/config/regex.config';
@@ -10,6 +10,10 @@ import { IOccuranceFrequency, ITransportLogOccuranceFrequency } from './interfac
 @Injectable()
 export class ParserService {
   getLogInfo(file: Express.Multer.File): ParserDto {
+    if (!file) {
+      throw new BadRequestException('No file provided to parse');
+    }
+
     let levelInfo: ILevelInfo = {
       infoCount: 0,
       errorCount: 0,
@@ -32,6 +36,10 @@ export class ParserService {
 
         occuranceFrequency = this.findOccuranceFrequencyOfTransportLogs(transportLogMatch, occuranceFrequency);
       }
+    }
+
+    if (levelInfo.infoCount + levelInfo.errorCount + levelInfo.warnCount === 0) {
+      throw new BadRequestException('Log file can not be parsed');
     }
 
     return { levelInfo, occuranceFrequency };
