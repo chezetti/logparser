@@ -1,7 +1,7 @@
-import { Controller, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Controller, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
-import { ParserDto } from './dto/parser.dto';
+import { ParsedLogDto } from './dto/parser.dto';
 import { ParserService } from './parser.service';
 
 @ApiTags('parser')
@@ -23,7 +23,11 @@ export class ParserController {
       },
     },
   })
-  getLogInfo(@UploadedFile() file: Express.Multer.File): ParserDto {
-    return this.parserService.getLogInfo(file);
+  parseLog(@UploadedFile() file: Express.Multer.File): ParsedLogDto {
+    if (!file) {
+      throw new BadRequestException('No file provided to parse');
+    }
+
+    return this.parserService.parseLog(file);
   }
 }

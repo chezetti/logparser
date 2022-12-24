@@ -1,9 +1,8 @@
-import { ILevelInfo } from '../interfaces/level-info.interface';
-import { ILogLevelExpectation } from '../interfaces/log-level-expectation.interface';
+import { ILogLevelExpectation, ILogLevelInfo } from '../interfaces/log-level.interface';
 import { ITransportLogOccuranceFrequency } from '../interfaces/occurance-frequency.interface';
 
-export interface ParserDto {
-  levelInfo: ILevelInfo;
+export interface ParsedLogDto {
+  logLevelInfo: ILogLevelInfo;
   occuranceFrequency: ITransportLogOccuranceFrequency;
-  logLevelExpectations: ILogLevelExpectation;
+  logLevelExpectation: ILogLevelExpectation;
 }
