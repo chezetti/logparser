@@ -1,42 +1,120 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { decode } from 'iconv-lite';
 
-import { ParserDto } from './dto/parser.dto';
+import { TRANSPORT_LOG_REGEX } from 'src/config/regex.config';
+import { ParsedLogDto } from './dto/parsed-log.dto';
+import { ILogLevelExpectation, ILogLevelInfo } from './interfaces/log-level.interface';
+import { IOccuranceFrequency, ITransportLogOccuranceFrequency } from './interfaces/occurance-frequency.interface';
 
 @Injectable()
 export class ParserService {
-  ERROR = 'ERROR';
-  INFO = 'INFO';
+  parseLog(file: Express.Multer.File): ParsedLogDto {
+    const occuranceFrequency: ITransportLogOccuranceFrequency = this.findOccuranceFrequencyOfTransportLogs(
+      decode(file.buffer, 'windows1251')
+    );
 
-  getLogInfo(file: Express.Multer.File): ParserDto {
-    let errorCount: number = 0, infoCount: number = 0;
+    const logLevelInfo = this.countLogLevels(occuranceFrequency.levelCountsByTimestamp);
 
-    const contents = file.buffer.toString();
-    const lines = contents.split('\n');
+    const logLevelExpectation = this.calculateLogLevelExpectation(
+      occuranceFrequency.levelCountsByTimestamp,
+      logLevelInfo.TOTAL
+    );
 
-    for (const line of lines) {
-      if (this.isError(line)) {
-        errorCount++;
-      } else if (this.isInfo(line)) {
-        infoCount++;
+    if (logLevelInfo.TOTAL === 0) {
+      throw new BadRequestException('Log file can not be parsed');
+    }
+
+    return { logLevelInfo, occuranceFrequency, logLevelExpectation };
+  }
+
+  findOccuranceFrequencyOfTransportLogs(transportLogs: string): ITransportLogOccuranceFrequency {
+    let occuranceFrequency: ITransportLogOccuranceFrequency = {
+      levelCountsByTimestamp: {},
+      classNameCountsByTimestamp: {},
+      messageCountsByTimestamp: {},
+    };
+
+    for (const line of transportLogs.match(/.+/g)) {
+      const transportLogMatch = TRANSPORT_LOG_REGEX.exec(line);
+
+      if (transportLogMatch) {
+        const [, timestamp, level, className, message] = transportLogMatch;
+        const logDate = timestamp.replace(',', '.');
+
+        occuranceFrequency.levelCountsByTimestamp = this.findOccuranceFrequencyOfLogGroup(
+          logDate,
+          level,
+          occuranceFrequency.levelCountsByTimestamp
+        );
+        occuranceFrequency.classNameCountsByTimestamp = this.findOccuranceFrequencyOfLogGroup(
+          logDate,
+          className,
+          occuranceFrequency.classNameCountsByTimestamp
+        );
+        occuranceFrequency.messageCountsByTimestamp = this.findOccuranceFrequencyOfLogGroup(
+          logDate,
+          message,
+          occuranceFrequency.messageCountsByTimestamp
+        );
       }
     }
 
-    return { errorCount, infoCount };
+    return occuranceFrequency;
   }
 
-  isError(line: string): boolean {
-    try {
-      return line.toLowerCase().includes(this.ERROR.toLowerCase());
-    } catch (err) {
-      console.error(err);
+  findOccuranceFrequencyOfLogGroup(
+    firstLogGroup: string,
+    secondLogGroup: string,
+    logGroupCountsBy: IOccuranceFrequency
+  ): IOccuranceFrequency {
+    if (!(secondLogGroup in logGroupCountsBy)) {
+      logGroupCountsBy[secondLogGroup] = {};
     }
+
+    if (firstLogGroup in logGroupCountsBy[secondLogGroup]) {
+      logGroupCountsBy[secondLogGroup][firstLogGroup] += 1;
+    } else {
+      logGroupCountsBy[secondLogGroup][firstLogGroup] = 1;
+    }
+
+    return logGroupCountsBy;
   }
 
-  isInfo(line: string): boolean {
-    try {
-      return line.toLowerCase().includes(this.INFO.toLowerCase());
-    } catch (err) {
-      console.error(err);
+  countLogLevels(levelCountsByTimestamp: IOccuranceFrequency): ILogLevelInfo {
+    const logLevelInfo: ILogLevelInfo = { ERROR: 0, INFO: 0, WARN: 0, TOTAL: 0 };
+
+    for (const level in levelCountsByTimestamp) {
+      const logLevelCount = Object.values(levelCountsByTimestamp[level]).reduce(
+        (previousCount, nextCount) => previousCount + nextCount,
+        0
+      );
+
+      logLevelInfo[level] = logLevelCount;
     }
+
+    logLevelInfo['TOTAL'] = Object.values(logLevelInfo).reduce(
+      (previousCount, nextCount) => previousCount + nextCount,
+      0
+    );
+
+    return logLevelInfo;
+  }
+
+  calculateLogLevelExpectation(
+    levelCountsByTimestamp: IOccuranceFrequency,
+    totalLogCount: number
+  ): ILogLevelExpectation {
+    const logLevelExpectations: ILogLevelExpectation = { ERROR: 0, INFO: 0, WARN: 0 };
+
+    for (const level in levelCountsByTimestamp) {
+      const logLevelProbability =
+        Object.values(levelCountsByTimestamp[level]).reduce(
+          (previousCount, nextCount) => previousCount + nextCount,
+          0
+        ) / totalLogCount;
+      logLevelExpectations[level] = logLevelProbability;
+    }
+
+    return logLevelExpectations;
   }
 }
