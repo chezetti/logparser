@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { decode } from 'iconv-lite';
 
 import { TRANSPORT_LOG_REGEX } from 'src/config/regex.config';
-import { ParsedLogDto } from './dto/parser.dto';
+import { ParsedLogDto } from './dto/parsed-log.dto';
 import { ILogLevelExpectation, ILogLevelInfo } from './interfaces/log-level.interface';
 import { IOccuranceFrequency, ITransportLogOccuranceFrequency } from './interfaces/occurance-frequency.interface';
 
@@ -81,7 +81,7 @@ export class ParserService {
   }
 
   countLogLevels(levelCountsByTimestamp: IOccuranceFrequency): ILogLevelInfo {
-    const logLevelInfo: ILogLevelInfo = {};
+    const logLevelInfo: ILogLevelInfo = { ERROR: 0, INFO: 0, WARN: 0, TOTAL: 0 };
 
     for (const level in levelCountsByTimestamp) {
       const logLevelCount = Object.values(levelCountsByTimestamp[level]).reduce(
@@ -104,7 +104,7 @@ export class ParserService {
     levelCountsByTimestamp: IOccuranceFrequency,
     totalLogCount: number
   ): ILogLevelExpectation {
-    const logLevelExpectations: ILogLevelExpectation = {};
+    const logLevelExpectations: ILogLevelExpectation = { ERROR: 0, INFO: 0, WARN: 0 };
 
     for (const level in levelCountsByTimestamp) {
       const logLevelProbability =

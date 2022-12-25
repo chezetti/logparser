@@ -1,5 +1,8 @@
 interface ILogLevel {
-  [level: string]: number;
+  INFO: number;
+  ERROR: number;
+  WARN: number;
+  TOTAL?: number;
 }
 
 export interface ILogLevelInfo extends ILogLevel {}

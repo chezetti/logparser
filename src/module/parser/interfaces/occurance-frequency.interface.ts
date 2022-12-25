@@ -1,6 +1,6 @@
 export interface IOccuranceFrequency {
-  [level: string]: {
-    [date: string]: number;
+  [firstLogGroup: string]: {
+    [secondLogGroup: string]: number;
   };
 }
 
