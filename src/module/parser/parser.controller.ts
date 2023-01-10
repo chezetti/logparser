@@ -18,7 +18,7 @@ import { ParserService } from './parser.service';
 export class ParserController {
   constructor(private readonly parserService: ParserService) {}
 
-  @Post('/:regex')
+  @Post('/:range')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
   @ApiBody({
@@ -34,15 +34,11 @@ export class ParserController {
     },
   })
   @ApiCreatedResponse({ type: ParsedLogDto })
-  parseLog(@UploadedFile() file: Express.Multer.File, @Param('regex') regex: string): ParsedLogDto {
+  parseLog(@UploadedFile() file, @Param('range') range: string): ParsedLogDto {
     if (!file) {
       throw new BadRequestException('No file provided to parse');
     }
 
-    if (regex !== ' ' || !new RegExp(regex)) {
-      throw new BadRequestException('Wrong regex');
-    }
-
-    return this.parserService.parseLog(file, regex);
+    return this.parserService.parseLog(file, range);
   }
 }

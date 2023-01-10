@@ -8,12 +8,10 @@ import { IOccuranceFrequency, ITransportLogOccuranceFrequency } from './interfac
 
 @Injectable()
 export class ParserService {
-  parseLog(file: Express.Multer.File, regex?: string): ParsedLogDto {
-    const transportRegex = regex !== ' ' ? new RegExp(regex) : TRANSPORT_LOG_REGEX;
-
+  parseLog(file, range?: string): ParsedLogDto {
     const occuranceFrequency: ITransportLogOccuranceFrequency = this.findOccuranceFrequencyOfTransportLogs(
       decode(file.buffer, 'windows1251'),
-      transportRegex
+      range
     );
 
     const logLevelInfo = this.countLogLevels(occuranceFrequency.levelCountsByTimestamp);
@@ -30,38 +28,69 @@ export class ParserService {
     return { logLevelInfo, occuranceFrequency, logLevelExpectation };
   }
 
-  findOccuranceFrequencyOfTransportLogs(
-    transportLogs: string,
-    transportRegex: RegExp
-  ): ITransportLogOccuranceFrequency {
+  findOccuranceFrequencyOfTransportLogs(transportLogs: string, range: string): ITransportLogOccuranceFrequency {
     let occuranceFrequency: ITransportLogOccuranceFrequency = {
       levelCountsByTimestamp: {},
       classNameCountsByTimestamp: {},
       messageCountsByTimestamp: {},
     };
+    let flag, fromTime, toTime;
+
+    if (range === '0-0') {
+      flag = true;
+    } else {
+      const [from, to] = range.split('-');
+
+      fromTime = new Date();
+      fromTime.setHours(+from, 0, 0, 0);
+
+      toTime = new Date();
+      toTime.setHours(+to, 0, 0, 0);
+    }
 
     for (const line of transportLogs.match(/.+/g)) {
-      const transportLogMatch = transportRegex.exec(line);
+      const transportLogMatch = TRANSPORT_LOG_REGEX.exec(line);
 
       if (transportLogMatch) {
         const [, timestamp, level, className, message] = transportLogMatch;
         const logDate = timestamp.replace(',', '.');
 
-        occuranceFrequency.levelCountsByTimestamp = this.findOccuranceFrequencyOfLogGroup(
-          logDate,
-          level,
-          occuranceFrequency.levelCountsByTimestamp
-        );
-        occuranceFrequency.classNameCountsByTimestamp = this.findOccuranceFrequencyOfLogGroup(
-          logDate,
-          className,
-          occuranceFrequency.classNameCountsByTimestamp
-        );
-        occuranceFrequency.messageCountsByTimestamp = this.findOccuranceFrequencyOfLogGroup(
-          logDate,
-          message,
-          occuranceFrequency.messageCountsByTimestamp
-        );
+        if (flag) {
+          occuranceFrequency.levelCountsByTimestamp = this.findOccuranceFrequencyOfLogGroup(
+            logDate,
+            level,
+            occuranceFrequency.levelCountsByTimestamp
+          );
+          occuranceFrequency.classNameCountsByTimestamp = this.findOccuranceFrequencyOfLogGroup(
+            logDate,
+            className,
+            occuranceFrequency.classNameCountsByTimestamp
+          );
+          occuranceFrequency.messageCountsByTimestamp = this.findOccuranceFrequencyOfLogGroup(
+            logDate,
+            message,
+            occuranceFrequency.messageCountsByTimestamp
+          );
+        } else if (
+          new Date(logDate).getUTCHours() >= fromTime.getUTCHours() &&
+          new Date(logDate).getUTCHours() <= toTime.getUTCHours()
+        ) {
+          occuranceFrequency.levelCountsByTimestamp = this.findOccuranceFrequencyOfLogGroup(
+            logDate,
+            level,
+            occuranceFrequency.levelCountsByTimestamp
+          );
+          occuranceFrequency.classNameCountsByTimestamp = this.findOccuranceFrequencyOfLogGroup(
+            logDate,
+            className,
+            occuranceFrequency.classNameCountsByTimestamp
+          );
+          occuranceFrequency.messageCountsByTimestamp = this.findOccuranceFrequencyOfLogGroup(
+            logDate,
+            message,
+            occuranceFrequency.messageCountsByTimestamp
+          );
+        }
       }
     }
 
