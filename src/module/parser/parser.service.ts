@@ -8,9 +8,12 @@ import { IOccuranceFrequency, ITransportLogOccuranceFrequency } from './interfac
 
 @Injectable()
 export class ParserService {
-  parseLog(file: Express.Multer.File): ParsedLogDto {
+  parseLog(file: Express.Multer.File, regex?: string): ParsedLogDto {
+    const transportRegex = regex !== ' ' ? new RegExp(regex) : TRANSPORT_LOG_REGEX;
+
     const occuranceFrequency: ITransportLogOccuranceFrequency = this.findOccuranceFrequencyOfTransportLogs(
-      decode(file.buffer, 'windows1251')
+      decode(file.buffer, 'windows1251'),
+      transportRegex
     );
 
     const logLevelInfo = this.countLogLevels(occuranceFrequency.levelCountsByTimestamp);
@@ -27,7 +30,10 @@ export class ParserService {
     return { logLevelInfo, occuranceFrequency, logLevelExpectation };
   }
 
-  findOccuranceFrequencyOfTransportLogs(transportLogs: string): ITransportLogOccuranceFrequency {
+  findOccuranceFrequencyOfTransportLogs(
+    transportLogs: string,
+    transportRegex: RegExp
+  ): ITransportLogOccuranceFrequency {
     let occuranceFrequency: ITransportLogOccuranceFrequency = {
       levelCountsByTimestamp: {},
       classNameCountsByTimestamp: {},
@@ -35,7 +41,7 @@ export class ParserService {
     };
 
     for (const line of transportLogs.match(/.+/g)) {
-      const transportLogMatch = TRANSPORT_LOG_REGEX.exec(line);
+      const transportLogMatch = transportRegex.exec(line);
 
       if (transportLogMatch) {
         const [, timestamp, level, className, message] = transportLogMatch;
