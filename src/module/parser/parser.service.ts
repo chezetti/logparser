@@ -33,6 +33,7 @@ export class ParserService {
       levelCountsByTimestamp: {},
       classNameCountsByTimestamp: {},
       messageCountsByTimestamp: {},
+      errorClassNameCountsByMessage: {},
     };
     let flag, fromTime, toTime;
 
@@ -71,6 +72,13 @@ export class ParserService {
             message,
             occuranceFrequency.messageCountsByTimestamp
           );
+          if (level === 'ERROR') {
+            occuranceFrequency.errorClassNameCountsByMessage = this.findOccuranceFrequencyOfLogGroup(
+              message,
+              className,
+              occuranceFrequency.errorClassNameCountsByMessage
+            );
+          }
         } else if (
           new Date(logDate).getUTCHours() >= fromTime.getUTCHours() &&
           new Date(logDate).getUTCHours() <= toTime.getUTCHours()
@@ -90,6 +98,13 @@ export class ParserService {
             message,
             occuranceFrequency.messageCountsByTimestamp
           );
+          if (level === 'ERROR') {
+            occuranceFrequency.errorClassNameCountsByMessage = this.findOccuranceFrequencyOfLogGroup(
+              message,
+              className,
+              occuranceFrequency.errorClassNameCountsByMessage
+            );
+          }
         }
       }
     }

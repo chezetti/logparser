@@ -8,4 +8,5 @@ export interface ITransportLogOccuranceFrequency {
   levelCountsByTimestamp: IOccuranceFrequency;
   classNameCountsByTimestamp: IOccuranceFrequency;
   messageCountsByTimestamp: IOccuranceFrequency;
+  errorClassNameCountsByMessage: IOccuranceFrequency;
 }
